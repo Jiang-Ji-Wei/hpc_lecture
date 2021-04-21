@@ -2,56 +2,54 @@
 #include <cstdlib>
 #include <vector>
 
+template<class T>
+void merge(std::vector<T>& vec, int begin, int mid, int end) {
+  std::vector<T> tmp(end-begin+1);
+  int left = begin;
+  int right = mid+1;
+  for (int i=0; i<tmp.size(); i++) {
+    if (left > mid)
+      tmp[i] = vec[right++];
+    else if (right > end)
+      tmp[i] = vec[left++];
+    else if (vec[left] <= vec[right])
+      tmp[i] = vec[left++];
+    else
+      tmp[i] = vec[right++];
+  }
+  for (int i=0; i<tmp.size(); i++)
+    vec[begin++] = tmp[i];
+}
+
+template<class T>
+void merge_sort(std::vector<T>& vec, int begin, int end) {
+  if(begin < end) {
+    int mid = (begin + end) / 2;//mid:a local varible which was private
+                                //make: vec to be shared 
+    #pragma omp task shared(vec)  
+    merge_sort(vec, begin, mid);
+    merge_sort(vec, mid+1, end);
+    #pragma omp taskwait
+    merge(vec, begin, mid, end);
+  }
+}
+
 int main() {
-  int n = 50;
-  int range = 5;
-  std::vector<int> key(n);
-  #pragma omp parallel for 
-  for (int i=0; i<n; i++)
-    key[i] = rand() % range;//random number 0~4
-  #pragma omp single
-  for (int i = 0; i < n; ++i)
-    printf("%d ", key[i]);
+  int n = 20;
+  std::vector<int> vec(n);
+  for (int i=0; i<n; i++) {
+    vec[i] = rand() % (10 * n);
+    printf("%d ",vec[i]);
+  }
   printf("\n");
-
-  std::vector<int> bucket(range,0);//bucket(0,0,0,0,0) 
-  #pragma omp parallel for shared(bucket)
-  for (int i=0; i<n; i++)       //bucket[i]=number of i in key()
-  #pragma omp atomic update
-    bucket[key[i]]++;
-
-  std::vector<int> offset(range,0);// offset(0,0,0,0,0)
-  std::vector<int> offset_out(range,0);
   #pragma omp parallel
   {
-  //I tried but failed.
-  //#pragma omp single
-  //for (int i=1; i<range; i++)//offset[i]:loaction of num change on key
-  //  offset[i] = offset[i-1] + bucket[i-1];
-  for (int j = 1; j < range; j<<=1){
-  #pragma omp for 
-    for (int i = 0; i < range; i++)
-        offset_out[i] = offset[i];
-  #pragma omp for
-    for (int i = j; i < range; i++)
-        offset[i] += offset_out[i-j];
+    #pragma omp single
+    merge_sort(vec, 0, n-1);
   }
-  #pragma omp for
-    for (int i = 1; i < range; i++)
-        offset[i] = offset[i] + bucket[i-1];
 
-  #pragma omp single
-  for (int i=0; i<range; i++) {
-    int j = offset[i];
-    for (; bucket[i]>0; bucket[i]--) {
-      key[j++] = i;
-    }
-  }
-  #pragma omp single
   for (int i=0; i<n; i++) {
-    printf("%d ",key[i]);
+    printf("%d ",vec[i]);
   }
-  #pragma omp single
   printf("\n");
-  }
 }
