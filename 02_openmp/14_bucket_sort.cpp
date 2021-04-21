@@ -24,7 +24,6 @@ int main() {
   std::vector<int> offset_out(range,0);
   #pragma omp parallel
   {
-  //I tried but failed.
   //#pragma omp single
   //for (int i=1; i<range; i++)//offset[i]:loaction of num change on key
   //  offset[i] = offset[i-1] + bucket[i-1];
